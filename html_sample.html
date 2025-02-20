@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Diagnosis Prediction</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin: 2rem 0;
+            font-size: 2.5rem;
+        }
+
+        #upload-section {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #file-input {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1.25rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: calc(100% - 2.5rem);
+        }
+
+        #process-button {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1rem;
+        }
+
+        #process-button:hover {
+            background-color: #0056b3;
+        }
+
+        #loading-message, #error-message, #success-message {
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        #error-message {
+            color: #dc3545;
+        }
+
+        #success-message {
+            color: #28a745;
+        }
+
+        #results-section {
+            display: none;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 900px;
+        }
+
+        #classification-reports {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+        }
+
+        #classification-reports pre {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            width: 48%;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        #model-comparison {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+
+        #model-comparison th, #model-comparison td {
+            border: 1px solid #ddd;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        #model-comparison th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        #confusion-matrix-container {
+            text-align: center;
+        }
+
+        #confusion-matrix-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Healthcare Diagnosis Prediction</h1>
+
+    <div id="upload-section">
+        <input type="file" id="file-input" accept=".csv">
+        <button id="process-button">Process Data</button>
+        <div id="loading-message" style="display: none;">Processing... Please wait.</div>
+        <div id="error-message" style="color: red;"></div>
+        <div id="success-message" style="color: green;"></div>
+    </div>
+
+    <div id="results-section">
+        <h2>Model Evaluation</h2>
+
+        <div id="classification-reports">
+            <div>
+                <h3>Random Forest Classification Report</h3>
+                <pre id="rf-report"></pre>
+            </div>
+            <div>
+                <h3>Logistic Regression Classification Report</h3>
+                <pre id="lr-report"></pre>
+            </div>
+        </div>
+
+        <h2>Model Comparison</h2>
+        <table id="model-comparison">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>Confusion Matrix (Random Forest)</h2>
+        <div id="confusion-matrix-container">
+            <img id="confusion-matrix-image" src="" alt="Confusion Matrix">
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const processButton = document.getElementById('process-button');
+        const resultsSection = document.getElementById('results-section');
+        const rfReport = document.getElementById('rf-report');
+        const lrReport = document.getElementById('lr-report');
+        const modelComparisonTable = document.getElementById('model-comparison').getElementsByTagName('tbody')[0];
+        const errorMessage = document.getElementById('error-message');
+        const successMessage = document.getElementById('success-message');
+        const loadingMessage = document.getElementById('loading-message');
+        const confusionMatrixImage = document.getElementById('confusion-matrix-image');
+
+        processButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                errorMessage.textContent = "Please select a file.";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            errorMessage.textContent = "";
+            successMessage.textContent = "";
+            loadingMessage.style.display = 'block';
+
+            fetch('/process', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingMessage.style.display = 'none';
+                if (data.error) {
+                    errorMessage.textContent = data.error;
+                } else {
+                    rfReport.textContent = data.rf_report;
+                    lrReport.textContent = data.lr_report;
+
+                    modelComparisonTable.innerHTML = '';
+                    if (data.model_comparison && Array.isArray(data.model_comparison)) {
+                        data.model_comparison.forEach(row => {
+                            const newRow = modelComparisonTable.insertRow();
+                            const cell1 = newRow.insertCell(0);
+                            const cell2 = newRow.insertCell(1);
+                            cell1.textContent = row.Model;
+                            cell2.textContent = row.Accuracy.toFixed(4);
+                        });
+                    } else {
+                        console.error("Invalid model comparison data:", data.model_comparison);
+                        errorMessage.textContent = "Error: Invalid model comparison data.";
+                    }
+
+                    confusionMatrixImage.src = 'data:image/png;base64,' + data.confusion_matrix_image;
+
+                    resultsSection.style.display = 'block';
+                    successMessage.textContent = "Processing complete.";
+                }
+            })
+            .catch(error => {
+                loadingMessage.style.display = 'none';
+                errorMessage.textContent = "An error occurred during processing.";
+                console.error(error);
+            });
+        });
+    </script>
+</body>
+</html>
