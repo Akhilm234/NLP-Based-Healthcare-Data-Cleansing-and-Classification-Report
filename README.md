@@ -18,9 +18,6 @@ Database integration for data storage and analysis.
 Automated report generation with performance metrics.
 Model enhancements to improve accuracy, particularly for "Myocardial Infarction."
 
-#Website visualizations:
-![](images/screenshot.png)
-
 How to Use:
 1. download the HTML and Server.py file
 2. download the libraries
